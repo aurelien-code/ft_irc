@@ -4,7 +4,7 @@ SRC_DIR		=	sources
 OBJ_DIR		=	objects
 NAME		=	ircserv
 
-SRC			=	main.cpp
+SRC			=	main.cpp server.cpp
 OBJ			=	$(SRC:.cpp=.o)
 OBJ_PATH	=	$(addprefix $(OBJ_DIR)/, $(OBJ))
 

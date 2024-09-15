@@ -1,18 +1,37 @@
 #pragma once
 
 #include <string>
+#include <map>
+#include <vector>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <fcntl.h>
+#include <poll.h>
 
 class Server
 {
 	private:
-		const int			_port;
-		const std::string	_password;
-
+		std::string			_password;
+		int					_port;
+		int					_serverSocket;
+		
+		std::vector<pollfd>			_fds;
+		std::map<int, std::string>	_clients;
+	
 	public:
-		Server();
-		Server(const Server &ref);
-		Server &operator=(const Server &ref);
+		Server(std::string& port, std::string& password);
+		Server(const Server& ref);
 		~Server();
+		Server	&operator=(const Server& ref);
+
+		bool	initialize();
+		void	run();
+
+	private:
+		void	acceptNewConnection();
+		void	handleClientMessage(int clientSocket);
+		void	removeClient(int clientSocket);
 
 };
 
