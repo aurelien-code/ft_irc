@@ -4,7 +4,12 @@ SRC_DIR		=	sources
 OBJ_DIR		=	objects
 NAME		=	ircserv
 
-SRC			=	main.cpp server.cpp parser.cpp
+SRC			=	main.cpp \
+                server.cpp \
+                parser.cpp \
+                messages_handler.cpp \
+                actions_handler.cpp \
+                logger.cpp
 OBJ			=	$(SRC:.cpp=.o)
 OBJ_PATH	=	$(addprefix $(OBJ_DIR)/, $(OBJ))
 
@@ -26,4 +31,3 @@ fclean: clean
 re: fclean all
 
 .PHONY: all clean fclean re
-

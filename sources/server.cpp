@@ -1,5 +1,5 @@
 #include "server.hpp"
-
+#include "logger.hpp"
 
 Server::Server(std::string& port, std::string& password)
 {
@@ -43,11 +43,11 @@ bool    Server::initialize()
 	_serverSocket = socket(AF_INET, SOCK_STREAM, 0);
 	if (_serverSocket == -1)
 		return (false);
-	
+
 	int flags = fcntl(_serverSocket, F_GETFL, 0);
 	fcntl(_serverSocket, F_SETFL, flags | O_NONBLOCK);
 
-	
+
 	sockaddr_in serverAddr;
 	serverAddr.sin_family = AF_INET;
 	serverAddr.sin_addr.s_addr = INADDR_ANY;
@@ -63,7 +63,12 @@ bool    Server::initialize()
 		return (false);
 	}
 
-	pollfd  serverPollFd = {_serverSocket, POLLIN, 0};
+	pollfd  serverPollFd = {
+	   _serverSocket,
+		POLLIN,
+		0
+	};
+
 	_fds.push_back(serverPollFd);
 
 	return (true);
@@ -74,7 +79,7 @@ void    Server::run()
 	while (true)
 	{
 		int poll_result = poll(&_fds[0], _fds.size(), -1);
-		
+
 		if (poll_result > 0)
 		{
 			for (size_t i = 0; i < _fds.size(); ++i)
@@ -104,7 +109,7 @@ void    Server::acceptNewConnection()
 
 	if (client_socket == -1)
 	{
-		std::cerr << "[ERROR]   Issue during acceptNewConnection()" << std::endl;
+		Logger::error("issue while retrieving client socket");
 		return ;
 	}
 
@@ -115,7 +120,7 @@ void    Server::acceptNewConnection()
 	new_client.events = POLLIN;
 	_fds.push_back(new_client);
 
-	std::cout << "[INFO]    New connection (fd = " << new_client.fd << ")\n";
+	Logger::info("new connection", new_client.fd);
 }
 
 void    Server::handleClientMessage(int client_socket)
@@ -125,15 +130,15 @@ void    Server::handleClientMessage(int client_socket)
 	std::string 			response;
 	ssize_t					bytes_read;
 	std::vector<IRCMessage> messages;
-	
+
 	bytes_read = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
 	if (bytes_read <= 0)
 	{
 		if (!bytes_read)
-			std::cout << "Client disconnected" << std::endl;
+			Logger::info("client disconnected", client_socket);
 		else
-			std::cerr << "Error reading from client" << std::endl;
-		
+			Logger::error("error while reading from client", client_socket);
+
 		removeClient(client_socket);
 		return ;
 	}
@@ -148,9 +153,9 @@ void    Server::handleClientMessage(int client_socket)
 		const IRCMessage&	msg = *itt;
 		handleMessage(client_socket, msg);
 	}
-
+	std::cout << "On est ici et responsle == " << response.length() << std::endl;
 	send(client_socket, response.c_str(), response.length(), 0);
-	return ;	
+	return ;
 }
 
 void    Server::removeClient(int client_socket)
@@ -167,7 +172,7 @@ void    Server::removeClient(int client_socket)
 	}
 	_clients.erase(client_socket);
 	close(client_socket);
-	std::cout << "Client removed" << std::endl;
+	Logger::info("client removed", client_socket);
 	return ;
 }
 
@@ -176,36 +181,26 @@ void	Server::handleMessage(int client_socket, const IRCMessage& msg)
 	if (msg.cmd == "CAP")
 	{
 		if (!msg.params[0].empty() && msg.params[0] == "LS")
-			std::cout	 << "[INFO]\tCAP LS received" << std::endl;
+			handle_capacities(client_socket);
 	}
 	else if (msg.cmd == "PASS")
-		std::cout << "[INFO]\tPASS received" << std::endl;
+		Logger::info("PASS received", client_socket);
 	else if (msg.cmd == "NICK")
-		std::cout << "[INFO]\tNICK received" << std::endl;
+		Logger::info("NICK received", client_socket);
+	else if (msg.cmd == "JOIN")
+		Logger::info("JOIN received", client_socket);
 	else if (msg.cmd == "USER")
-		std::cout << "[INFO]\tUSER received" << std::endl;
+		Logger::info("USER received", client_socket);
 	else if (_client_registered[client_socket])
 	{
-		//others commands
-		std::cout << "Unknow command received: " << msg.cmd << std::endl;
+		Logger::info("unknow command received", client_socket);
+		Logger::info(msg.cmd, client_socket);
 	}
 	else
 	{
-		
-		std::cout << "[ALERT]\tUnregistered client detected" << std::endl;
+		Logger::info("unregistered client detected", client_socket);
+		Logger::info(msg.cmd, client_socket);
 	}
 
-	
-}
 
-void	Server::send_to_client(int client_socket, const std::string& msg)
-{
-	ssize_t	bytes_sent = send(client_socket, msg.c_str(), msg.length(), 0);
-	
-	if (bytes_sent < 0)
-		std::cerr << "[ERROR]\twhile sending message to client" << std::endl;
-	else if (static_cast<size_t>(bytes_sent) < msg.length())
-		std::cerr << "[ERROR]\tnot all bytes were sent" << std::endl;
-	else
-		std::cout << "[INFO]\tmessage sent to client (" << client_socket << ")" << std::endl;
 }
