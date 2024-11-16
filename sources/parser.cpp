@@ -31,7 +31,7 @@ IRCMessage Parser::parse(const std::string &raw_msg)
     if (raw_msg[0] == ':')
     {
         std::getline(iss, msg.prefix, ' ');
-        msg.prefix = msg.prefix.substr(1); //This removes the :
+        msg.prefix = msg.prefix.substr(1); //Removes :
     }
 
     iss >> msg.cmd;
@@ -53,21 +53,15 @@ IRCMessage Parser::parse(const std::string &raw_msg)
     return (msg);
 }
 
-std::vector<IRCMessage> Parser::parser_buffer(const std::string &buffer)
+IRCMessage Parser::parse_message(const std::string &msg)
 {
-    std::vector<IRCMessage> msgs;
-    std::istringstream      iss(buffer);
-    std::string             line;
+    IRCMessage irc_msg;
+    std::istringstream      iss(msg);
 
-    while (std::getline(iss, line, '\n'))
-    {
-        if (!line.empty())
+        if (!msg.empty())
         {
-            if (line[line.length() - 1] == '\r')
-                line.erase(line.length() - 1);
-            msgs.push_back(parse(line));
+                irc_msg = parse(msg);
         }
-    }
 
-    return (msgs);
+    return (irc_msg);
 }

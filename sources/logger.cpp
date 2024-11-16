@@ -19,3 +19,8 @@ void    Logger::error(const std::string& txt)
 {
     std::cerr << "[ERROR][" << -1 << "]" << "\t" << txt << std::endl;
 }
+
+void    Logger::warning(const std::string& txt, int c_socket)
+{
+    std::cerr << "[WARNING1][" << c_socket << "]" << "\t" << txt << std::endl;
+}

@@ -14,13 +14,13 @@ class Parser
 {
 	private:
 		IRCMessage	_irc_msg;
-	
+
 	public:
 		Parser();
 		Parser(const Parser& ref);
 		Parser &operator=(const Parser& ref);
 		~Parser();
 
-		static IRCMessage				parse(const std::string &raw_msg);
-		static std::vector<IRCMessage>	parser_buffer(const std::string& buffer);
+		static IRCMessage	parse(const std::string &raw);
+		static IRCMessage	parse_message(const std::string& rae_msg);
 };

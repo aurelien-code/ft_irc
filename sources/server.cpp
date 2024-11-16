@@ -1,6 +1,15 @@
 #include "server.hpp"
 #include "logger.hpp"
-
+#include <exception>
+#include <stdexcept>
+#include <cerrno>
+/*
+	@description: server constructor
+	@list:
+		- Check if port are in an acceptable range
+		- Cast port : string(port) -> int(port)
+		- Throws error if failed
+*/
 Server::Server(std::string& port, std::string& password)
 {
 	_password = password;
@@ -10,7 +19,11 @@ Server::Server(std::string& port, std::string& password)
 	is >> i;
 	_port = i;
 
-	//Check if port is in a good range !!!
+	if (_port < 1024 || _port > 65535)
+	{
+        Logger::error("Invalid port number", _port);
+        throw std::out_of_range("Port out of valid range (1024-65535)");
+	}
 }
 
 Server::Server(const Server& ref)
@@ -37,7 +50,13 @@ Server  &Server::operator=(const Server& ref)
 	return (*this);
 }
 
-
+/*
+    @description: function setting up the server.
+    @list:
+        - set up the socket and make it non blocking.
+        - bound the socket to the adress.
+        - start listenning
+*/
 bool    Server::initialize()
 {
 	_serverSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -74,6 +93,13 @@ bool    Server::initialize()
 	return (true);
 }
 
+/*
+	@description: main loop of the server
+	@list:
+		- Check poll
+		- Accept a new connection
+		- Handle messaqges from client
+*/
 void    Server::run()
 {
 	while (true)
@@ -91,11 +117,61 @@ void    Server::run()
 					else
 						handleClientMessage(_fds[i].fd);
 				}
+				else if (_fds[i].revents & POLLOUT)
+				{
+				    process_pending_writes(_fds[i].fd);
+				}
 			}
+		}
+		else
+		{
+		    Logger::error("Poll failed", 0);
+			break ;
 		}
 	}
 }
 
+/*
+	@description: triggered when POLLOUT event for buffer processing
+	@list:
+		- Remove POLLOUT flag
+		- Clean buffer
+*/
+
+void Server::process_pending_writes(int fd)
+{
+    if (_client_send_buffers.find(fd) == _client_send_buffers.end())
+        return;
+
+    std::string& buffer = _client_send_buffers[fd];
+    ssize_t bytes_sent = send(fd, buffer.c_str(), buffer.length(), 0);
+
+    if (bytes_sent > 0)
+    {
+        buffer.erase(0, bytes_sent);
+        if (buffer.empty())
+        {
+            _client_send_buffers.erase(fd);
+            for (size_t i = 0; i < _fds.size(); ++i)
+            {
+                if (_fds[i].fd == fd)
+                {
+                    _fds[i].events &= ~POLLOUT;
+                    break;
+                }
+            }
+        }
+    }
+}
+
+
+/*
+	@description: Accept a new client connection
+	@list:
+		- Set the flags to be non-blocking
+		- Check and save client info
+		- Refuse connection if requirements not satified
+*/
 void    Server::acceptNewConnection()
 {
 	sockaddr_in	client_address;
@@ -123,41 +199,82 @@ void    Server::acceptNewConnection()
 	Logger::info("new connection", new_client.fd);
 }
 
+/*
+	@description
+	@list:
+		- Append new data to existing buffer
+		- Process complete messages
+		- Handle buffer size safely and within IRC protocol
+*/
+
 void    Server::handleClientMessage(int client_socket)
 {
-	char					buffer[1024];
-	std::string				msg_buffer;
-	std::string 			response;
+	char					buffer[512];
 	ssize_t					bytes_read;
-	std::vector<IRCMessage> messages;
 
-	bytes_read = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
-	if (bytes_read <= 0)
+	try
 	{
-		if (!bytes_read)
+		bytes_read = recv(client_socket, buffer, sizeof(buffer), 0);
+		if (bytes_read <= 0)
+		{
+			if (errno == EAGAIN || errno == EWOULDBLOCK)
+                return;
+            throw std::runtime_error("recv error !");
+		}
+		else if (!bytes_read)
+		{
 			Logger::info("client disconnected", client_socket);
+			removeClient(client_socket);
+			return ;
+		}
 		else
 			Logger::error("error while reading from client", client_socket);
 
-		removeClient(client_socket);
-		return ;
+
+		_recv_buffers[client_socket].append(buffer, bytes_read);
+
+		size_t pos;
+	    std::string& client_buffer = _recv_buffers[client_socket];
+
+	    while ((pos = client_buffer.find("\r\n")) != std::string::npos)
+	    {
+	        std::string message = client_buffer.substr(0, pos);
+	        client_buffer.erase(0, pos + 2);
+
+	        if (!message.empty())
+	        {
+	            IRCMessage parsed_msg = Parser::parse_message(message);
+	            try
+	            {
+	                handleMessage(client_socket, parsed_msg);
+	            }
+	            catch (const std::exception& e)
+	            {
+	                Logger::error("Error handling message: " + std::string(e.what()));
+	            }
+	        }
+
+	        if (client_buffer.length() > 512)
+	        {
+	            Logger::warning("Client buffer exceeded maximum size, truncating", client_socket);
+	            client_buffer = client_buffer.substr(0, 512);
+	        }
+	    }
 	}
-
-	buffer[bytes_read] = '\0';
-	msg_buffer = buffer;
-
-	messages = Parser::parser_buffer(msg_buffer);
-	std::vector<IRCMessage>::const_iterator	itt;
-	for (itt = messages.begin(); itt != messages.end(); ++itt)
+	catch (const std::exception& e)
 	{
-		const IRCMessage&	msg = *itt;
-		handleMessage(client_socket, msg);
+		Logger::error("Error in handleClientMessage: " + std::string(e.what()));
+        removeClient(client_socket);
 	}
-	std::cout << "On est ici et responsle == " << response.length() << std::endl;
-	send(client_socket, response.c_str(), response.length(), 0);
+	// send(client_socket, response.c_str(), response.length(), 0);
 	return ;
 }
 
+/*
+	@description: Remove a client from server
+		@list:
+			- Remove from pollfd
+*/
 void    Server::removeClient(int client_socket)
 {
 	std::vector<pollfd>::iterator it;
@@ -176,23 +293,63 @@ void    Server::removeClient(int client_socket)
 	return ;
 }
 
+/*
+!!!!!!!!!!!!
+OUT DATED
+!!!!!!!!!!!!
+*/
+
 void	Server::handleMessage(int client_socket, const IRCMessage& msg)
 {
+    Logger::info("Received command: " + msg.cmd, client_socket);
 	if (msg.cmd == "CAP")
 	{
 		if (!msg.params[0].empty() && msg.params[0] == "LS")
-			handle_capacities(client_socket);
+			handle_capacities(client_socket, msg);
+		return ;
 	}
 	else if (msg.cmd == "PASS")
+	{
 		Logger::info("PASS received", client_socket);
+		if (msg.params.empty() || msg.params[0] != _password)
+		{
+			send_to_client(client_socket, "464 :Password inccorrect");
+		}
+		else
+		{
+			_client_registered[client_socket] = true;
+			send_to_client(client_socket, "001 " + _client_nicknames[client_socket] + " :Welcome to the IRC server\r\n");
+		}
+	}
 	else if (msg.cmd == "NICK")
+	{
 		Logger::info("NICK received", client_socket);
+		if (msg.params.empty())
+		{
+			send_to_client(client_socket, "431 :No nickname given\r\n");
+		}
+		else
+		{
+			_client_nicknames[client_socket] = msg.params[0];
+		}
+	}
 	else if (msg.cmd == "JOIN")
-		Logger::info("JOIN received", client_socket);
+	   Server::handle_join(client_socket, msg);
 	else if (msg.cmd == "USER")
-		Logger::info("USER received", client_socket);
+	{
+		if (msg.params.size() < 4)
+		{
+            send_to_client(client_socket, "461 * USER :Not enough parameters\r\n");
+        }
+		else
+		{
+            _client_usernames[client_socket] = msg.params[0];
+            send_to_client(client_socket, "001 " + _client_nicknames[client_socket] + " :Welcome to the IRC server\r\n");
+        }
+	}
 	else if (_client_registered[client_socket])
 	{
+
 		Logger::info("unknow command received", client_socket);
 		Logger::info(msg.cmd, client_socket);
 	}
@@ -201,6 +358,4 @@ void	Server::handleMessage(int client_socket, const IRCMessage& msg)
 		Logger::info("unregistered client detected", client_socket);
 		Logger::info(msg.cmd, client_socket);
 	}
-
-
 }
