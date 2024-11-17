@@ -56,7 +56,7 @@ bool	Server::send_to_client(int client_socket, const std::string& msg)
         total_sent += bytes_sent;
     }
 
-    Logger::info("Message sent to client: " + msg_build, client_socket);
+    Logger::info("Message sent to client", client_socket);
     return (true);
 }
 

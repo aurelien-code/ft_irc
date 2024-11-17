@@ -3,6 +3,7 @@
 #include <exception>
 #include <stdexcept>
 #include <cerrno>
+
 /*
 	@description: server constructor
 	@list:
@@ -35,7 +36,10 @@ Server::Server(const Server& ref)
 
 Server::~Server()
 {
-	//Add things to free memory later here;
+	for (size_t i = 0; i < _fds.size(); ++i) {
+        close(_fds[i].fd);
+    }
+    close(_serverSocket);
 }
 
 Server  &Server::operator=(const Server& ref)
@@ -64,6 +68,14 @@ bool    Server::initialize()
 	_serverSocket = socket(AF_INET, SOCK_STREAM, 0);
 	if (_serverSocket == -1)
 		return (false);
+
+
+	int opt = 1;
+    if (setsockopt(_serverSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
+    {
+        close(_serverSocket);
+        return (false);
+    }
 
 	int flags = fcntl(_serverSocket, F_GETFL, 0);
 	fcntl(_serverSocket, F_SETFL, flags | O_NONBLOCK);
@@ -230,7 +242,9 @@ void    Server::handleClientMessage(int client_socket)
 			return ;
 		}
 		else
-			Logger::error("error while reading from client", client_socket);
+		{
+			Logger::info("Message received from client: \t", client_socket);
+		}
 
 
 		_recv_buffers[client_socket].append(buffer, bytes_read);
@@ -813,10 +827,14 @@ void Server::handle_invite(int client_socket, const IRCMessage& msg)
         }
 
         // If channel is invite-only, check if inviter is operator
-        if (channel.modes.find('i') != std::string::npos &&
-            channel.operators.find(client_socket) == channel.operators.end()) {
+        if (channel.modes.find('i') != std::string::npos && channel.operators.find(client_socket) == channel.operators.end())
+        {
             send_to_client(client_socket, ERR_CHANOPRIVSNEEDED(channel_name));
             return;
+        }
+        else
+        {
+        	std::cout << YEL << client_socket << ": CHANNEL MODE: " << channel.modes << WHT << std::endl;
         }
 
         // Find target user
@@ -836,8 +854,7 @@ void Server::handle_invite(int client_socket, const IRCMessage& msg)
 
         // Check if target is already in channel
         if (channel.users.find(target_socket) != channel.users.end()) {
-            send_to_client(client_socket, "443 " + target_nick + " " + channel_name +
-                            " :is already on channel");
+            send_to_client(client_socket, "443 " + target_nick + " " + channel_name +" :is already on channel");
             return;
         }
 
@@ -869,7 +886,7 @@ void Server::handle_topic(int client_socket, const IRCMessage& msg)
 {
 	try {
         if (msg.params.empty()) {
-            send_to_client(client_socket, ERR_NEEDMOREPARAMS(_client_nicknames[client_socket], "TOPIC"));
+        	send_to_client(client_socket, "461 " + _client_nicknames[client_socket] + " " +  "TOPIC :Not enough parameters");
             return;
         }
 
@@ -877,7 +894,7 @@ void Server::handle_topic(int client_socket, const IRCMessage& msg)
 
         // Check if channel exists
         if (_channels.find(channel_name) == _channels.end()) {
-            send_to_client(client_socket, ERR_NOSUCHCHANNEL(_client_nicknames[client_socket], channel_name));
+      		send_to_client(client_socket, "403 " + _client_nicknames[client_socket] + " " + channel_name + " :No suck channel");
             return;
         }
 
@@ -885,16 +902,16 @@ void Server::handle_topic(int client_socket, const IRCMessage& msg)
 
         // Check if user is in channel
         if (channel.users.find(client_socket) == channel.users.end()) {
-            send_to_client(client_socket, ERR_NOTONCHANNEL(_client_nicknames[client_socket], channel_name));
+      		send_to_client(client_socket, "442 " + _client_nicknames[client_socket] + " " + channel_name + " :You're not on that channel");
             return;
         }
 
         // If no topic parameter is given, return current topic
         if (msg.params.size() == 1) {
             if (channel.topic.empty()) {
-                send_to_client(client_socket, RPL_NOTOPIC(_client_nicknames[client_socket], channel_name));
+           		send_to_client(client_socket, "331 " + _client_nicknames[client_socket] + " " + channel_name + " :No topic set");
             } else {
-                send_to_client(client_socket, RPL_TOPIC(_client_nicknames[client_socket], channel_name, channel.topic));
+          		send_to_client(client_socket, "332 " + _client_nicknames[client_socket] + " " + channel_name);
             }
             return;
         }
@@ -902,7 +919,7 @@ void Server::handle_topic(int client_socket, const IRCMessage& msg)
         // Check if channel has topic restriction (+t mode) and user is not operator
         if (channel.modes.find('t') != std::string::npos &&
             channel.operators.find(client_socket) == channel.operators.end()) {
-            send_to_client(client_socket, ERR_CHANOPRIVSNEEDED(_client_nicknames[client_socket], channel_name));
+           	send_to_client(client_socket, "482 " + _client_nicknames[client_socket] + " " + channel_name + " :You'r not operator of this chan");
             return;
         }
 
@@ -930,7 +947,7 @@ void Server::handle_mode(int client_socket, const IRCMessage& msg)
 {
 	try {
         if (msg.params.size() < 2) {
-            send_to_client(client_socket, ERR_NEEDMOREPARAMS(_client_nicknames[client_socket], "MODE"));
+       		send_to_client(client_socket, "461 " + _client_nicknames[client_socket] + " " +  "MODE :Not enough parameters");
             return;
         }
 
@@ -951,12 +968,13 @@ void Server::handle_mode(int client_socket, const IRCMessage& msg)
     }
 }
 
-void Server::handle_channel_mode(int client_socket, const std::string& channel_name,
-                               const std::string& modes, const std::vector<std::string>& params)
+void Server::handle_channel_mode(int client_socket, const std::string& channel_name, const std::string& modes, const std::vector<std::string>& params)
 {
+
     // Check if channel exists
     if (_channels.find(channel_name) == _channels.end()) {
-        send_to_client(client_socket, ERR_NOSUCHCHANNEL(_client_nicknames[client_socket], channel_name));
+        send_to_client(client_socket, "403 " + _client_nicknames[client_socket] + " " +
+                      channel_name + " :No such channel");
         return;
     }
 
@@ -964,66 +982,137 @@ void Server::handle_channel_mode(int client_socket, const std::string& channel_n
 
     // Check if user is in channel
     if (channel.users.find(client_socket) == channel.users.end()) {
-        send_to_client(client_socket, ERR_NOTONCHANNEL(_client_nicknames[client_socket], channel_name));
+        send_to_client(client_socket, "442 " + _client_nicknames[client_socket] + " " +
+                      channel_name + " :You're not on that channel");
         return;
     }
 
     // Check if user is operator
     if (channel.operators.find(client_socket) == channel.operators.end()) {
-        send_to_client(client_socket, ERR_CHANOPRIVSNEEDED(_client_nicknames[client_socket], channel_name));
+        send_to_client(client_socket, "482 " + _client_nicknames[client_socket] + " " +
+                      channel_name + " :You're not channel operator");
         return;
     }
 
     size_t param_index = 2;  // Start from the third parameter
     bool adding = true;      // Mode is being added or removed
+    std::string mode_changes; // Track actual mode changes
+    std::string mode_params; // Track parameters for mode changes
 
     for (size_t i = 0; i < modes.length(); ++i) {
         char mode = modes[i];
 
         if (mode == '+') {
             adding = true;
+            mode_changes += '+';
             continue;
         }
         if (mode == '-') {
             adding = false;
+            mode_changes += '-';
             continue;
         }
 
         switch (mode) {
             case 'o': // Operator privilege
-                if (param_index < params.size()) {
-                    handle_operator_mode(client_socket, channel, params[param_index++], adding);
+                if (param_index >= params.size()) {
+                    send_to_client(client_socket, "461 MODE :Not enough parameters");
+                    continue;
+                }
+                {
+                    std::string target_nick = params[param_index++];
+                    handle_operator_mode(client_socket, channel, target_nick, adding);
+                    mode_changes += 'o';
+                    mode_params += " " + target_nick;
                 }
                 break;
+
             case 'i': // Invite-only
-                if (adding)
-                    channel.modes += 'i';
-                else
-                    channel.modes.erase(std::remove(channel.modes.begin(), channel.modes.end(), 'i'),
-                                      channel.modes.end());
+                if (adding) {
+                    if (channel.modes.find('i') == std::string::npos)
+                        channel.modes += 'i';
+                } else {
+                    std::string new_modes;
+                    for (size_t j = 0; j < channel.modes.length(); ++j) {
+                        if (channel.modes[j] != 'i')
+                            new_modes += channel.modes[j];
+                    }
+                    channel.modes = new_modes;
+                }
+                mode_changes += 'i';
                 break;
+
             case 't': // Topic restriction
-                if (adding)
-                    channel.modes += 't';
+            	if (adding)
+             	{
+                    if (channel.modes.find('t') == std::string::npos)
+                        channel.modes += 't';
+                }
                 else
-                    channel.modes.erase(std::remove(channel.modes.begin(), channel.modes.end(), 't'),
-                                      channel.modes.end());
+                {
+                    std::string new_modes;
+                    for (size_t j = 0; j < channel.modes.length(); ++j) {
+                        if (channel.modes[j] != 't')
+                            new_modes += channel.modes[j];
+                    }
+                    channel.modes = new_modes;
+                }
+                mode_changes += 't';
                 break;
-            // Add other mode handlers as needed
+
+            case 'k': // Channel key (password)
+                if (adding) {
+                    if (param_index >= params.size()) {
+                        send_to_client(client_socket, "461 MODE :Not enough parameters");
+                        continue;
+                    }
+                    channel.key = params[param_index++];
+                    std::cout << "PASS CHANNEL = " << channel.key << std::endl;
+                    mode_changes += 'k';
+                    mode_params += " " + channel.key;
+                } else {
+                    channel.key.clear();
+                    mode_changes += 'k';
+                }
+                break;
+
+            case 'l': // User limit
+                if (adding) {
+                    if (param_index >= params.size()) {
+                        send_to_client(client_socket, "461 MODE :Not enough parameters");
+                        continue;
+                    }
+                    std::istringstream iss(params[param_index++]);
+                    int limit;
+                    if (!(iss >> limit) || limit < 0) {
+                        send_to_client(client_socket, "461 MODE :Invalid user limit");
+                        continue;
+                    }
+                    channel.user_limit = limit;
+                    mode_changes += 'l';
+                    mode_params += " " + params[param_index - 1];
+                } else {
+                    channel.user_limit = -1; // No limit
+                    mode_changes += 'l';
+                }
+                break;
+
+            default:
+                send_to_client(client_socket, "472 " + _client_nicknames[client_socket] + " " +
+                             std::string(1, mode) + " :is unknown mode char to me");
+                continue;
         }
     }
 
-    // Broadcast mode change
-    std::string mode_msg = ":" + _client_nicknames[client_socket] + "!" +
-                          _client_usernames[client_socket] + "@" +
-                          get_client_host(client_socket) + " MODE " +
-                          channel_name + " " + modes;
-
-    for (size_t i = 2; i < params.size(); ++i) {
-        mode_msg += " " + params[i];
+    // Only broadcast if there were actual changes
+    if (!mode_changes.empty()) {
+        std::string mode_msg = ":" + _client_nicknames[client_socket] + "!" +
+                              _client_usernames[client_socket] + "@" +
+                              get_client_host(client_socket) + " MODE " +
+                              channel_name + " " + mode_changes + mode_params;
+        broadcast_to_channel(channel_name, mode_msg);
     }
 
-    broadcast_to_channel(channel_name, mode_msg);
 }
 
 void Server::handle_operator_mode(int client_socket, Channel& channel,
@@ -1040,13 +1129,12 @@ void Server::handle_operator_mode(int client_socket, Channel& channel,
     }
 
     if (target_socket == -1) {
-        send_to_client(client_socket, ERR_NOSUCHNICK(_client_nicknames[client_socket], target_nick));
+  		send_to_client(client_socket, "401 " + _client_nicknames[client_socket] + " " + target_nick + " :No such nick/channel");
         return;
     }
 
     if (channel.users.find(target_socket) == channel.users.end()) {
-        send_to_client(client_socket, ERR_USERNOTINCHANNEL(_client_nicknames[client_socket],
-                      target_nick, channel.name));
+   		send_to_client(client_socket, "441 " + _client_nicknames[client_socket] + " " + channel.name + " :Are not in this channel");
         return;
     }
 
@@ -1056,11 +1144,70 @@ void Server::handle_operator_mode(int client_socket, Channel& channel,
         channel.operators.erase(target_socket);
 }
 
-void Server::handle_user_mode(int client_socket, const std::string& target, const std::string& modes)
+void Server::handle_user_mode(int client_socket, const std::string& target_nick, const std::string& modes)
 {
-    // Implementation for user modes if needed
-    // Most IRC servers only support a limited set of user modes
-    (void)client_socket;
-    (void)target;
-    (void)modes;
+	// Check if the target nick exists
+    bool found = false;
+    int target_socket = -1;
+    for (std::map<int, std::string>::iterator it = _client_nicknames.begin();
+         it != _client_nicknames.end(); ++it) {
+        if (it->second == target_nick) {
+            found = true;
+            target_socket = it->first;
+            break;
+        }
+    }
+
+    if (!found) {
+        send_to_client(client_socket, "401 " + _client_nicknames[client_socket] +
+                      " " + target_nick + " :No such nick");
+        return;
+    }
+
+    // Users can only modify their own modes
+    if (client_socket != target_socket) {
+        send_to_client(client_socket, "502 " + _client_nicknames[client_socket] +
+                      " :Can't change mode for other users");
+        return;
+    }
+
+    bool adding = true;
+    for (std::string::size_type i = 0; i < modes.length(); ++i) {
+        char mode = modes[i];
+
+        if (mode == '+') {
+            adding = true;
+            continue;
+        }
+        if (mode == '-') {
+            adding = false;
+            continue;
+        }
+
+        // Handle different user modes
+        switch (mode) {
+            case 'i': // Invisible mode
+                if (adding) {
+                    if (_client_modes[client_socket].find('i') == std::string::npos)
+                        _client_modes[client_socket] += 'i';
+                }
+                else {
+                    std::string::size_type pos = _client_modes[client_socket].find('i');
+                    if (pos != std::string::npos)
+                        _client_modes[client_socket].erase(pos, 1);
+                }
+                break;
+
+            // You can add more user modes here if needed
+
+            default:
+                send_to_client(client_socket, "472 " + _client_nicknames[client_socket] +
+                             " " + mode + " :is unknown mode char to me");
+                break;
+        }
+    }
+
+    // Notify the user of their new modes
+    send_to_client(client_socket, ":" + _client_nicknames[client_socket] +
+                  " MODE " + target_nick + " :" + _client_modes[client_socket]);
 }

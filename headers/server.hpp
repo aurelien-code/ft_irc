@@ -24,6 +24,8 @@
 #define ERR_NEEDMOREPARAMS(command) "461 " + command + " :Not enough parameters"
 
 typedef struct s_channel {
+	int user_limit;
+	std::string key;
 	std::string name;
     std::string topic;
     std::string modes;  // Store channel modes
@@ -46,6 +48,7 @@ class Server
 		std::map<int, std::string>	_client_usernames;
 		std::map<int, std::string>	_client_realnames;
 		std::map<int, bool>			_client_registered;
+		std::map<int, std::string>	_client_modes;
 		std::map<int, std::string>	_client_send_buffers;
 		std::map<int, bool>	_client_auth;
 		std::map<std::string, Channel>	_channels;
