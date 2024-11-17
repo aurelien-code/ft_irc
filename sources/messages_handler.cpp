@@ -97,13 +97,7 @@ void Server::handle_join(int client_socket, const IRCMessage& msg)
 {
     try
     {
-        if (client_socket < 0 || _client_nicknames.find(client_socket) == _client_nicknames.end()
-            || _client_usernames.find(client_socket) == _client_usernames.end())
-        {
-            Logger::error("Invalid client socket in handle_join");
-            return;
-        }
-
+        // Basic validation checks
         if (!_client_registered[client_socket])
         {
             send_to_client(client_socket, "451 :You have not registered");
@@ -112,50 +106,66 @@ void Server::handle_join(int client_socket, const IRCMessage& msg)
 
         if (msg.params.empty())
         {
-            send_to_client(client_socket, "461 JOIN :Not enough params");
+            send_to_client(client_socket, "461 JOIN :Not enough parameters");
             return;
         }
 
-        std::string chan_name = msg.params[0];
+        std::string channel_name = msg.params[0];
 
-        if (chan_name.empty())
+        // Channel name validation
+        if (channel_name.empty() || (channel_name[0] != '#' && channel_name[0] != '&'))
         {
-            send_to_client(client_socket, "403 :Invalid channel name");
+            send_to_client(client_socket, "403 " + channel_name + " :Invalid channel name");
             return;
         }
 
-        if (chan_name[0] != '#' && chan_name[0] != '&')
+        // Create channel if it doesn't exist
+        if (_channels.find(channel_name) == _channels.end())
         {
-            send_to_client(client_socket, "403 " + chan_name + " :No such chan");
-            return;
+            Channel new_channel;
+            new_channel.name = channel_name;
+            _channels[channel_name] = new_channel;
         }
 
-        std::string nick;
-        std::string username;
-        try
+        // Add user to channel
+        _channels[channel_name].users.insert(client_socket);
+
+        // Prepare and send join notification
+        std::string nick = _client_nicknames[client_socket];
+        std::string join_msg = ":" + nick + "!" +
+                              _client_usernames[client_socket] + "@" +
+                              get_client_host(client_socket) +
+                              " JOIN " + channel_name;
+        broadcast_to_channel(channel_name, join_msg);
+
+        // Send channel topic if it exists
+        if (!_channels[channel_name].topic.empty())
         {
-            nick = _client_nicknames.at(client_socket);
-            username = _client_usernames.at(client_socket);
-        }
-        catch (const std::out_of_range& e)
-        {
-            Logger::error("Client information not found in handle_join");
-            return;
+            send_to_client(client_socket, "332 " + nick + " " +
+                          channel_name + " :" + _channels[channel_name].topic);
         }
 
-        if (join_channel(client_socket, chan_name))
+        // Build and send names list
+        std::string names_list;
+        for (std::set<int>::const_iterator it = _channels[channel_name].users.begin();
+             it != _channels[channel_name].users.end(); ++it)
         {
-            Logger::info(nick + " joined the channel (username = " + username + ")");
-            // Rajouter le code commente (version non protegee)
+            if (!names_list.empty())
+                names_list += " ";
+            names_list += _client_nicknames[*it];
         }
-        else
-        {
-            Logger::error("Failed to join channel: " + chan_name);
-            send_to_client(client_socket, "403 " + chan_name + " :Failed to join channel");
-        }
+
+        // Send RPL_NAMREPLY and RPL_ENDOFNAMES
+        send_to_client(client_socket, "353 " + nick + " = " +
+                      channel_name + " :" + names_list);
+        send_to_client(client_socket, "366 " + nick + " " +
+                      channel_name + " :End of /NAMES list");
+
+        Logger::info(nick + " joined channel: " + channel_name);
     }
     catch (const std::exception& e)
     {
         Logger::error("Exception in handle_join: " + std::string(e.what()));
+        send_to_client(client_socket, "403 :Failed to join channel");
     }
 }

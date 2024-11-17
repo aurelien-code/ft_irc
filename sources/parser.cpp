@@ -22,46 +22,38 @@ Parser::~Parser()
 
 }
 
-IRCMessage Parser::parse(const std::string &raw_msg)
-{
-    IRCMessage          msg;
-    std::istringstream  iss(raw_msg);
-    std::string         token;
+IRCMessage Parser::parse(const std::string &raw_msg) {
+    if (raw_msg.length() > MAX_MSG_LEN)
+        throw std::runtime_error("Message too long");
 
-    if (raw_msg[0] == ':')
-    {
+    IRCMessage msg;
+    std::istringstream iss(raw_msg);
+    std::string token;
+
+    if (raw_msg[0] == ':') {
         std::getline(iss, msg.prefix, ' ');
-        msg.prefix = msg.prefix.substr(1); //Removes :
+        msg.prefix = msg.prefix.substr(1);
     }
 
     iss >> msg.cmd;
+    if (msg.cmd.empty())
+        throw std::runtime_error("No command found");
 
-    while (std::getline(iss, token, ' '))
-    {
+    while (std::getline(iss, token, ' ')) {
         if (token.empty())
-            continue ;
-        else if (token[0] == ':')
-        {
+            continue;
+
+        if (msg.params.size() >= MAX_PARAMS)
+            throw std::runtime_error("Too many parameters");
+
+        if (token[0] == ':') {
             std::string trailing;
             std::getline(iss, trailing);
             msg.params.push_back(token.substr(1) + " " + trailing);
-            break ;
+            break;
         }
         msg.params.push_back(token);
     }
 
-    return (msg);
-}
-
-IRCMessage Parser::parse_message(const std::string &msg)
-{
-    IRCMessage irc_msg;
-    std::istringstream      iss(msg);
-
-        if (!msg.empty())
-        {
-                irc_msg = parse(msg);
-        }
-
-    return (irc_msg);
+    return msg;
 }

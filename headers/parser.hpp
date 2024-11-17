@@ -10,17 +10,18 @@ typedef struct IRCMessage {
 	std::vector<std::string>	params;
 } IRCMessage;
 
+
 class Parser
 {
 	private:
-		IRCMessage	_irc_msg;
+		static const int MAX_PARAMS = 15;
+		static const int MAX_MSG_LEN = 512;
+		Parser(const Parser& ref);
+		Parser &operator=(const Parser& ref);
 
 	public:
 		Parser();
-		Parser(const Parser& ref);
-		Parser &operator=(const Parser& ref);
 		~Parser();
 
 		static IRCMessage	parse(const std::string &raw);
-		static IRCMessage	parse_message(const std::string& rae_msg);
 };

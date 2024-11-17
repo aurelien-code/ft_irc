@@ -64,37 +64,39 @@ bool	Server::send_to_client(int client_socket, const std::string& msg)
 OUTDATED
 */
 
-bool    Server::join_channel(int client_socket, std::string& name)
+bool    Server::join_channel(int client_socket, std::string& channel_name)
 {
-    std::map<std::string, Channel>::iterator channel_it = _channels.find(name);
-
-    if (channel_it == _channels.end())
+    // Add channel if it doesn't exist
+    if (_channels.find(channel_name) == _channels.end())
     {
-        Logger::info("Creating a new channel...");
         Channel new_channel;
-        new_channel.name = name;
-        new_channel.users.insert(client_socket);
-        _channels[name] = new_channel;
-
-        //Add things to make the first user to join an operator
-        //set channels modes etc
-        return (true);
+        new_channel.name = channel_name;
+        _channels[channel_name] = new_channel;
     }
 
-    Channel& channel = channel_it->second;
-    if (channel.users.find(client_socket) != channel.users.end())
+    // Add user to channel
+    _channels[channel_name].users.insert(client_socket);
+
+    // Notify all users in channel about the new join
+    std::string nick = _client_nicknames[client_socket];
+    std::string join_msg = ":" + nick + "!" + _client_usernames[client_socket] + "@" + get_client_host(client_socket) + " JOIN " + channel_name;
+    broadcast_to_channel(channel_name, join_msg);
+
+    // Send channel topic if it exists
+    if (!_channels[channel_name].topic.empty())
+        send_to_client(client_socket, "332 " + nick + " " + channel_name + " :" + _channels[channel_name].topic);
+
+    // Send names list
+    std::string names_list;
+    for (std::set<int>::const_iterator it = _channels[channel_name].users.begin();
+         it != _channels[channel_name].users.end(); ++it)
     {
-        Logger::info("Client found in channel");
-        send_to_client(client_socket, "443 " + _client_nicknames[client_socket] + " " + channel.name + " :is already on channel\r\n");
-        return (false);
+        if (!names_list.empty())
+            names_list += " ";
+        names_list += _client_nicknames[*it];
     }
+    send_to_client(client_socket, "353 " + nick + " = " + channel_name + " :" + names_list);
+    send_to_client(client_socket, "366 " + nick + " " + channel_name + " :End of /NAMES list");
 
-    // Here you can add checks for channel modes, such as:
-    // - User limit
-    // - Invite-only
-    // - Ban list
-    // For simplicity, we'll just add the user to the channel
-
-    channel.users.insert(client_socket);
-    return (true);
+    return true;
 }
