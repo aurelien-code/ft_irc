@@ -8,13 +8,22 @@ NAME		=	ircserv
 SRC			=	main.cpp \
                 server.cpp \
                 parser.cpp \
-                messages_handler.cpp \
-                actions_handler.cpp \
                 logger.cpp \
-                commands/auth.cpp \
-                commands/user.cpp \
-                commands/channel.cpp \
-                commands/chat.cpp
+                messages.cpp \
+                utils.cpp \
+                client.cpp \
+                auth.cpp \
+                commands/join.cpp \
+                commands/invite.cpp \
+                commands/kick.cpp \
+                commands/mode.cpp \
+                commands/privmsg.cpp \
+                commands/topic.cpp \
+                commands/quit.cpp \
+                commands/part.cpp \
+                commands/nick.cpp \
+                commands/user.cpp
+
 OBJ			=	$(SRC:.cpp=.o)
 OBJ_PATH	=	$(addprefix $(OBJ_DIR)/, $(OBJ))
 
