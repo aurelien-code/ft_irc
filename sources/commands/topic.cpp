@@ -1,5 +1,6 @@
 #include "../../headers/server.hpp"
 #include "../../headers/logger.hpp"
+#include <cstddef>
 
 
 // Check channel exists
@@ -41,8 +42,8 @@ void Server::handle_topic(int client_socket, const IRCMessage& msg)
         }
 
         // Check if channel has topic restriction (+t mode) and user is not operator
-        if (channel.modes.find('t') != std::string::npos &&
-            channel.operators.find(client_socket) == channel.operators.end()) {
+        size_t t_pos = channel.modes.find_last_of('t');
+        if (t_pos != std::string::npos && channel.modes[t_pos - 1] != '-' && channel.operators.find(client_socket) == channel.operators.end()) {
            	send_to_client(client_socket, "482 " + _client_nicknames[client_socket] + " " + channel_name + " :You'r not operator of this chan");
             return;
         }

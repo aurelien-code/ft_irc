@@ -1,8 +1,7 @@
 #include "../../headers/server.hpp"
-
 void Server::handle_nick_cmd(int client_socket, const IRCMessage& msg)
 {
-	if (msg.params.empty())
+    if (msg.params.empty())
     {
         send_to_client(client_socket, "431 :No nickname given");
         return;
@@ -14,6 +13,7 @@ void Server::handle_nick_cmd(int client_socket, const IRCMessage& msg)
         send_to_client(client_socket, "432 " + new_nick + " :Nickname too long");
         return;
     }
+
     // Nickname validation
     if (!is_valid_nickname(new_nick))
     {
@@ -47,14 +47,11 @@ void Server::handle_nick_cmd(int client_socket, const IRCMessage& msg)
                                 get_client_host(client_socket) +
                                 " NICK :" + new_nick;
 
-        // Notify all channels where the user is present
-        for (std::map<std::string, Channel>::iterator it = _channels.begin();
-             it != _channels.end(); ++it)
+        // Send the nickname change to all connected clients
+        for (std::map<int, std::string>::const_iterator it = _client_nicknames.begin();
+             it != _client_nicknames.end(); ++it)
         {
-            if (it->second.users.find(client_socket) != it->second.users.end())
-            {
-                broadcast_to_channel(it->first, change_msg);
-            }
+            send_to_client(it->first, change_msg);
         }
     }
 

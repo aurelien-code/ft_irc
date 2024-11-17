@@ -26,7 +26,7 @@ void    Server::acceptNewConnection()
 		return ;
 	}
 
-	flags = fcntl(client_socket, O_NONBLOCK);
+	flags = fcntl(client_socket, F_SETFL, O_NONBLOCK);
 
 	new_client.fd = client_socket;
 	new_client.events = POLLIN;

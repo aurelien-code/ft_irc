@@ -54,9 +54,8 @@ void    Server::handleClientMessage(int client_socket)
 		}
 		else
 		{
-			Logger::info("Message received from client: \t", client_socket);
+			Logger::info("NC : Message received from client: \t", client_socket);
 		}
-
 
 		_recv_buffers[client_socket].append(buffer, bytes_read);
 

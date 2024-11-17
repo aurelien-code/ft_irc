@@ -1,5 +1,6 @@
 #include "../../headers/server.hpp"
 #include "../../headers/logger.hpp"
+#include <cstddef>
 
 /*
 	@description: handle /JOIN
@@ -38,8 +39,10 @@ void Server::handle_join(int client_socket, const IRCMessage& msg)
             Channel& channel = _channels[channel_name];
             Logger::warning("Channel modes: " + channel.modes, client_socket);
             Logger::debug("Channel key: " + channel.key, client_socket);
-            if (channel.modes.find('k') != std::string::npos)
-            {
+
+           	size_t k_pos = channel.modes.find_last_of('k');
+           	if (k_pos != std::string::npos && channel.modes[k_pos - 1] != '-')
+           	{
                 if (msg.params.size() < 2)
                 {
                 	Logger::debug("No key provided", client_socket);
@@ -54,20 +57,20 @@ void Server::handle_join(int client_socket, const IRCMessage& msg)
                     send_to_client(client_socket, "475 " + _client_nicknames[client_socket] + " " + channel_name + " :Cannot join channel (+k) - bad key");
                     return;
                 }
-            }
+           	}
 
-            if (channel.modes.find('i') != std::string::npos)
-            {
+           	size_t i_pos = channel.modes.find_last_of('i');
+           	if (i_pos != std::string::npos && channel.modes[i_pos - 1] != '-')
+           	{
                 if (channel.invited_users.find(client_socket) == channel.invited_users.end())
                 {
                     send_to_client(client_socket, "473 " + channel_name + " :Cannot join channel (+i) - invite only");
                     return;
                 }
-            }
+           	}
 
-            if (channel.modes.find('l') != std::string::npos && channel.user_limit != -1)
+            if (channel.user_limit != -1)
             {
-            	Logger::warning("ICI ON CHECK LA LIMITE", client_socket);
                 if (static_cast<int>(channel.users.size()) >= channel.user_limit)
                 {
                     send_to_client(client_socket, "471 " + channel_name + " :Cannot join channel (+l) - channel is full");

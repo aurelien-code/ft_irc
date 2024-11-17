@@ -1,13 +1,13 @@
 #include "server.hpp"
 #include "logger.hpp"
 #include <errno.h>
+
 /*
 	@description: triggered when POLLOUT event for buffer processing
 	@list:
 		- Remove POLLOUT flag
 		- Clean buffer
 */
-
 void Server::process_pending_writes(int fd)
 {
 	if (_client_send_buffers.find(fd) == _client_send_buffers.end())

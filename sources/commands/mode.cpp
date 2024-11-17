@@ -16,7 +16,7 @@ void Server::handle_mode(int client_socket, const IRCMessage& msg)
 
         std::string target = msg.params[0];
         std::string modes = msg.params[1];
-
+        std::cout << "PARAMS SIZE ===============" << msg.params.size() << std::endl;
         if (target[0] == '#' || target[0] == '&')
         {
             handle_channel_mode(client_socket, target, modes, msg.params);
@@ -30,6 +30,7 @@ void Server::handle_mode(int client_socket, const IRCMessage& msg)
 
 void Server::handle_channel_mode(int client_socket, const std::string& channel_name, const std::string& modes, const std::vector<std::string>& params)
 {
+	Logger::warning(modes, 22);
     if (_channels.find(channel_name) == _channels.end())
     {
         send_to_client(client_socket, "403 " + _client_nicknames[client_socket] + " " +
@@ -65,13 +66,13 @@ void Server::handle_channel_mode(int client_socket, const std::string& channel_n
         if (mode == '+')
         {
             adding = true;
-            mode_changes += '+';
+            // mode_changes += '+';
             continue;
         }
         if (mode == '-')
         {
             adding = false;
-            mode_changes += '-';
+            // mode_changes += '-';
             continue;
         }
 
@@ -87,47 +88,36 @@ void Server::handle_channel_mode(int client_socket, const std::string& channel_n
                 {
                     std::string target_nick = params[param_index++];
                     handle_operator_mode(client_socket, channel, target_nick, adding);
-                    mode_changes += 'o';
                     mode_params += " " + target_nick;
                 }
+                mode_changes += (adding) ? '+' : '-';
+                mode_changes += mode;
                 break;
 
             case 'i':
-                if (adding)
-                {
-                    if (channel.modes.find('i') == std::string::npos)
-                        channel.modes += 'i';
-                }
-                else
-                {
-                    std::string new_modes;
-                    for (size_t j = 0; j < channel.modes.length(); ++j)
-                    {
-                        if (channel.modes[j] != 'i')
-                            new_modes += channel.modes[j];
-                    }
-                    channel.modes = new_modes;
-                }
-                mode_changes += 'i';
+                // if (adding)
+                // {
+                //     if (channel.modes.find('i') == std::string::npos)
+                //         channel.modes += 'i';
+                // }
+                // else
+                // {
+                //     std::string new_modes;
+                //     for (size_t j = 0; j < channel.modes.length(); ++j)
+                //     {
+                //         if (channel.modes[j] != 'i')
+                //             new_modes += channel.modes[j];
+                //     }
+                //     // new_modes += 'i';
+                //     // channel.modes = new_modes;
+                // }
+                mode_changes += (adding) ? '+' : '-';
+                mode_changes += mode;
                 break;
 
             case 't':
-            	if (adding)
-             	{
-                    if (channel.modes.find('t') == std::string::npos)
-                    	channel.modes += 't';
-                }
-                else
-                {
-                    std::string new_modes;
-                    for (size_t j = 0; j < channel.modes.length(); ++j)
-                    {
-                        if (channel.modes[j] != 't')
-                            new_modes += channel.modes[j];
-                    }
-                    channel.modes = new_modes;
-                }
-                mode_changes += 't';
+                mode_changes += (adding) ? '+' : '-';
+                mode_changes += mode;
                 break;
 
             case 'k':
@@ -140,14 +130,12 @@ void Server::handle_channel_mode(int client_socket, const std::string& channel_n
                     }
                     channel.key = params[param_index++];
                     std::cout << "PASS CHANNEL = " << channel.key << std::endl;
-                    mode_changes += 'k';
                     mode_params += " " + channel.key;
                 }
                 else
-                {
                     channel.key.clear();
-                    mode_changes += 'k';
-                }
+                mode_changes += (adding) ? '+' : '-';
+                mode_changes += mode;
                 break;
 
             case 'l':
@@ -166,14 +154,14 @@ void Server::handle_channel_mode(int client_socket, const std::string& channel_n
                         continue;
                     }
                     channel.user_limit = limit;
-                    mode_changes += 'l';
                     mode_params += " " + params[param_index - 1];
                 }
                 else
                 {
                     channel.user_limit = -1;
-                    mode_changes += 'l';
                 }
+                mode_changes += (adding) ? '+' : '-';
+                mode_changes += mode;
                 break;
 
             default:
@@ -190,7 +178,8 @@ void Server::handle_channel_mode(int client_socket, const std::string& channel_n
                               _client_usernames[client_socket] + "@" +
                               get_client_host(client_socket) + " MODE " +
                               channel_name + " " + mode_changes + mode_params;
-        broadcast_to_channel(channel_name, mode_msg);
+        std::cout << YEL << mode_msg << WHT << std::endl;
+       	broadcast_to_channel(channel_name, mode_msg);
     }
 
 }

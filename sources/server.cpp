@@ -79,8 +79,7 @@ bool    Server::initialize()
         return (false);
     }
 
-	int flags = fcntl(_serverSocket, F_GETFL, 0);
-	fcntl(_serverSocket, F_SETFL, flags | O_NONBLOCK);
+	fcntl(_serverSocket, F_SETFL, O_NONBLOCK);
 
 
 	sockaddr_in serverAddr;
@@ -168,7 +167,6 @@ void Server::broadcast_to_channel(const std::string& channel_name, const std::st
 
     const Channel& channel = _channels[channel_name];
 
-    // Convert size_t to string using stringstream (C++98 compliant)
     std::ostringstream oss;
     oss << channel.users.size();
     Logger::debug("Broadcasting to " + oss.str() + " users in channel " + channel_name, 0);
