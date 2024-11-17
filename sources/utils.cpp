@@ -1,5 +1,6 @@
 #include "server.hpp"
-
+#include "logger.hpp"
+#include <errno.h>
 /*
 	@description: triggered when POLLOUT event for buffer processing
 	@list:
@@ -9,7 +10,7 @@
 
 void Server::process_pending_writes(int fd)
 {
-    if (_client_send_buffers.find(fd) == _client_send_buffers.end())
+	if (_client_send_buffers.find(fd) == _client_send_buffers.end())
         return;
 
     std::string& buffer = _client_send_buffers[fd];
@@ -29,6 +30,14 @@ void Server::process_pending_writes(int fd)
                     break;
                 }
             }
+        }
+    }
+    else if (bytes_sent < 0)
+    {
+        if (errno != EAGAIN && errno != EWOULDBLOCK)
+        {
+            Logger::error("Error sending data to client", fd);
+            removeClient(fd);
         }
     }
 }

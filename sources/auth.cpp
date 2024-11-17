@@ -42,7 +42,7 @@ void    Server::acceptNewConnection()
 */
 void Server::check_registration(int client_socket)
 {
-    if (_client_auth[client_socket] &&
+	if (_client_auth[client_socket] &&
         !_client_nicknames[client_socket].empty() &&
         !_client_usernames[client_socket].empty() &&
         !_client_registered[client_socket])
@@ -50,11 +50,24 @@ void Server::check_registration(int client_socket)
         _client_registered[client_socket] = true;
 
         std::string nick = _client_nicknames[client_socket];
+
+        // Send welcome messages according to RFC 2812
+        // 001 RPL_WELCOME
         send_to_client(client_socket, "001 " + nick + " :Welcome to the IRC Network " +
                       nick + "!" + _client_usernames[client_socket] + "@" + get_client_host(client_socket));
+
+        // 002 RPL_YOURHOST
         send_to_client(client_socket, "002 " + nick + " :Your host is " + get_server_name() +
                       ", running version 1.0");
-        send_to_client(client_socket, "003 " + nick + " :This server was created " + get_server_creation_time());
-        send_to_client(client_socket, "004 " + nick + " " + get_server_name() + " 1.0 o o");
+
+        // 003 RPL_CREATED
+        send_to_client(client_socket, "003 " + nick + " :This server was created " +
+                      get_server_creation_time());
+
+        // 004 RPL_MYINFO
+        send_to_client(client_socket, "004 " + nick + " " + get_server_name() +
+                      " 1.0 io mtk");
+
+        Logger::info("Client registration complete for " + nick, client_socket);
     }
 }

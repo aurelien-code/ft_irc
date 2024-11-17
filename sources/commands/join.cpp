@@ -36,7 +36,7 @@ void Server::handle_join(int client_socket, const IRCMessage& msg)
         if (_channels.find(channel_name) != _channels.end())
         {
             Channel& channel = _channels[channel_name];
-            Logger::debug("Channel modes: " + channel.modes, client_socket);
+            Logger::warning("Channel modes: " + channel.modes, client_socket);
             Logger::debug("Channel key: " + channel.key, client_socket);
             if (channel.modes.find('k') != std::string::npos)
             {
@@ -67,6 +67,7 @@ void Server::handle_join(int client_socket, const IRCMessage& msg)
 
             if (channel.modes.find('l') != std::string::npos && channel.user_limit != -1)
             {
+            	Logger::warning("ICI ON CHECK LA LIMITE", client_socket);
                 if (static_cast<int>(channel.users.size()) >= channel.user_limit)
                 {
                     send_to_client(client_socket, "471 " + channel_name + " :Cannot join channel (+l) - channel is full");

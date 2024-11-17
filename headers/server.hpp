@@ -76,7 +76,6 @@ class Server
 		void	handle_mode(int client_socket, const IRCMessage& msg);
 		void	handle_channel_mode(int client_socket, const std::string& channel_name, const std::string& modes, const std::vector<std::string>& params);
     	void	handle_operator_mode(int client_socket, Channel& channel, const std::string& target_nick, bool adding);
-     	void	handle_user_mode(int client_socket, const std::string& target, const std::string& modes);
 		void	set_fd_for_writing(int fd);
 		bool	send_to_client(int client_socket, const std::string& msg);
 };

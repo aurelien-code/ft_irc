@@ -185,6 +185,7 @@ void Server::handle_channel_mode(int client_socket, const std::string& channel_n
 
     if (!mode_changes.empty())
     {
+    	channel.modes += mode_changes;
         std::string mode_msg = ":" + _client_nicknames[client_socket] + "!" +
                               _client_usernames[client_socket] + "@" +
                               get_client_host(client_socket) + " MODE " +

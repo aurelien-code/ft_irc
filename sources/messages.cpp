@@ -1,6 +1,8 @@
+#include "parser.hpp"
 #include "server.hpp"
 #include "logger.hpp"
 #include <errno.h>
+
 /*
 	@description
 	@list:
@@ -24,9 +26,31 @@ void    Server::handleClientMessage(int client_socket)
 		}
 		else if (!bytes_read)
 		{
-			Logger::info("client disconnected", client_socket);
-			removeClient(client_socket);
-			return ;
+			// Process any remaining data in the buffer before removing client
+	        if (_recv_buffers[client_socket].length() > 0)
+	        {
+	            std::string& client_buffer = _recv_buffers[client_socket];
+	            size_t pos;
+	            while ((pos = client_buffer.find("\r\n")) != std::string::npos)
+	            {
+	                std::string message = client_buffer.substr(0, pos);
+	                client_buffer.erase(0, pos + 2);
+
+	                if (!message.empty())
+	                {
+	                    IRCMessage parsed_msg = Parser::parse(message);
+	                    handleMessage(client_socket, parsed_msg);
+	                }
+	            }
+	            // Process any remaining incomplete message
+	            if (!client_buffer.empty())
+	            {
+	                IRCMessage parsed_msg = Parser::parse(client_buffer);
+	                handleMessage(client_socket, parsed_msg);
+	            }
+	        }
+	        removeClient(client_socket);
+	        return;
 		}
 		else
 		{
@@ -76,6 +100,7 @@ void    Server::handleClientMessage(int client_socket)
 
 void	Server::handleMessage(int client_socket, const IRCMessage& msg)
 {
+	std::cout << "MESSAGE : \n\t" << msg.cmd << "\n\t" << msg.prefix << "\n";
     Logger::debug("Received command: " + msg.cmd, client_socket);
     if (!_client_registered[client_socket])
     {
@@ -105,7 +130,7 @@ void	Server::handleMessage(int client_socket, const IRCMessage& msg)
     {
         handle_nick_cmd(client_socket, msg);
     }
-    else if (msg.cmd == "USER")
+    else if (msg.cmd == "USER" || msg.cmd == "userhost")
     {
         handle_user_cmd(client_socket, msg);
     }

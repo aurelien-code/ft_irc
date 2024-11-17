@@ -14,10 +14,10 @@
 bool	Server::send_to_client(int client_socket, const std::string& msg)
 {
 	std::string suffix = "\r\n";
-	std::string	msg_build = msg + suffix;
-	size_t total_sent = 0;
+    std::string msg_build = msg + suffix;
+    size_t total_sent = 0;
 
-	while (total_sent < msg_build.length())
+    while (total_sent < msg_build.length())
     {
         ssize_t bytes_sent = send(client_socket,
             msg_build.c_str() + total_sent,
@@ -28,18 +28,25 @@ bool	Server::send_to_client(int client_socket, const std::string& msg)
         {
             if (errno == EAGAIN || errno == EWOULDBLOCK)
             {
+                // Buffer the remaining data
                 _client_send_buffers[client_socket] += msg_build.substr(total_sent);
                 set_fd_for_writing(client_socket);
-                return (false);
+                return false;
             }
             Logger::error("Error sending message to client", client_socket);
-            return (false);
+            return false;
+        }
+        else if (bytes_sent == 0) // Connection closed
+        {
+            // Buffer the remaining data in case connection is restored
+            _client_send_buffers[client_socket] += msg_build.substr(total_sent);
+            set_fd_for_writing(client_socket);
+            return false;
         }
         total_sent += bytes_sent;
     }
 
-    Logger::info("Message sent to client", client_socket);
-    return (true);
+    return true;
 }
 
 /*
@@ -93,7 +100,7 @@ void    Server::removeClient(int client_socket)
 	return ;
 }
 
-
+//MODIFIER
 std::string Server::get_client_host(int client_socket) const
 {
     struct sockaddr_in addr;
