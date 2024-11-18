@@ -22,7 +22,7 @@ void    Server::acceptNewConnection()
 
 	if (client_socket == -1)
 	{
-		Logger::error("issue while retrieving client socket");
+		Logger::debug("client socket not retrieved");
 		return ;
 	}
 
