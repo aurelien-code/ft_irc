@@ -4,6 +4,18 @@
 #include <exception>
 #include <stdexcept>
 #include <cerrno>
+#include <signal.h>
+
+bool Server::running = true;
+
+void Server::signal_handler(int signal)
+{
+    if (signal == SIGINT)
+    {
+        Logger::info("SIGINT received, shutting down server...");
+        running = false;
+    }
+}
 
 /*
 	@description: server constructor
@@ -117,7 +129,7 @@ bool    Server::initialize()
 */
 void    Server::run()
 {
-	while (true)
+	while (running)
 	{
 		try
 		{
@@ -156,6 +168,12 @@ void    Server::run()
 			Logger::error(e.what());
 		}
 	}
+ 	Logger::info("Server shutting down...");
+    for (size_t i = 0; i < _fds.size(); ++i)
+    {
+        close(_fds[i].fd);
+    }
+    close(_serverSocket);
 }
 
 void Server::initialize_server_infos()

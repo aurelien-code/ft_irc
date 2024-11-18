@@ -45,11 +45,13 @@ class Server
 	    std::string get_server_name() const;
 	    std::string get_server_creation_time() const;
 
+		static bool running;
 	/*--PUBLIC METHODS-- */
 	public:
 		Server(std::string& port, std::string& password);
 		~Server();
 
+		static void signal_handler(int signal);
 		bool	initialize();
 		void	run();
 		void 	process_pending_writes(int fd);

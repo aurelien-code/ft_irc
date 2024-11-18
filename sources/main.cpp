@@ -4,11 +4,13 @@
 #include "logger.hpp"
 #include "server.hpp"
 #include <sstream>
+#include <signal.h>
 
 int main(int ac, char **av)
 {
 	try
 	{
+		signal(SIGINT, Server::signal_handler);
 		std::string	port;
 		std::string	password;
 		if (ac != 3)
