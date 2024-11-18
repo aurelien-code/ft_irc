@@ -11,89 +11,63 @@
 		- Process complete messages
 		- Handle buffer size safely and within IRC protocol
 */
-void    Server::handleClientMessage(int client_socket)
+void Server::handleClientMessage(int client_socket)
 {
-	char					buffer[512];
-	ssize_t					bytes_read;
+    char buffer[512];
+    ssize_t bytes_read = recv(client_socket, buffer, sizeof(buffer), 0);
 
-	try
-	{
-		bytes_read = recv(client_socket, buffer, sizeof(buffer), 0);
-		if (bytes_read <= 0)
-		{
-			if (errno == EAGAIN || errno == EWOULDBLOCK)
-                return;
-            throw std::runtime_error("recv error !");
-		}
-		else if (!bytes_read)
-		{
-	        if (_recv_buffers[client_socket].length() > 0)
-	        {
-	            std::string& client_buffer = _recv_buffers[client_socket];
-	            size_t pos;
-	            while ((pos = client_buffer.find("\r\n")) != std::string::npos)
-	            {
-	                std::string message = client_buffer.substr(0, pos);
-	                client_buffer.erase(0, pos + 2);
+    if (bytes_read <= 0)
+    {
+        if (bytes_read == 0 || (errno != EAGAIN && errno != EWOULDBLOCK))
+        {
+            // Don't process any more messages, just remove the client
+            removeClient(client_socket);
+            return;
+        }
+        return;
+    }
 
-	                if (!message.empty())
-	                {
-	                    IRCMessage parsed_msg = Parser::parse(message);
-	                    handleMessage(client_socket, parsed_msg);
-	                }
-	            }
-	            if (!client_buffer.empty())
-	            {
-	                IRCMessage parsed_msg = Parser::parse(client_buffer);
-	                handleMessage(client_socket, parsed_msg);
-	            }
-	        }
-	        removeClient(client_socket);
-	        return;
-		}
-		else
-		{
-			Logger::info("NC : Message received from client: \t", client_socket);
-		}
+    // Store the received data in a temporary variable
+    std::string current_message(buffer, bytes_read);
 
-		_recv_buffers[client_socket].append(buffer, bytes_read);
+    // Append to existing buffer
+    std::map<int, std::string>::iterator it = _recv_buffers.find(client_socket);
+    if (it != _recv_buffers.end())
+    {
+        it->second += current_message;
+    }
+    else
+    {
+        _recv_buffers[client_socket] = current_message;
+    }
 
-		size_t pos;
-	    std::string& client_buffer = _recv_buffers[client_socket];
+    // Process complete messages
+    std::string& client_buffer = _recv_buffers[client_socket];
+    size_t pos;
 
-	    while ((pos = client_buffer.find("\r\n")) != std::string::npos)
-	    {
-	        std::string message = client_buffer.substr(0, pos);
-	        client_buffer.erase(0, pos + 2);
+    while ((pos = client_buffer.find("\r\n")) != std::string::npos)
+    {
+        std::string message = client_buffer.substr(0, pos);
+        client_buffer.erase(0, pos + 2);
 
-	        if (!message.empty())
-	        {
-	            IRCMessage parsed_msg = Parser::parse(message);
-	            try
-	            {
-	                handleMessage(client_socket, parsed_msg);
-	            }
-	            catch (const std::exception& e)
-	            {
-	                Logger::error("Error handling message: " + std::string(e.what()));
-	            }
-	        }
+        if (!message.empty())
+        {
+            try
+            {
+                IRCMessage parsed_msg = Parser::parse(message);
+                handleMessage(client_socket, parsed_msg);
 
-	        if (client_buffer.length() > 512)
-	        {
-	            Logger::warning("Client buffer exceeded maximum size, truncating", client_socket);
-	            client_buffer = client_buffer.substr(0, 512);
-	        }
-	    }
-	}
-	catch (const std::exception& e)
-	{
-		Logger::error("Error in handleClientMessage: " + std::string(e.what()));
-        removeClient(client_socket);
-	}
-	return ;
+                // Check if client was removed during message handling
+                if (_recv_buffers.find(client_socket) == _recv_buffers.end())
+                    return;
+            }
+            catch (const std::exception& e)
+            {
+                Logger::error("Error parsing message: " + std::string(e.what()));
+            }
+        }
+    }
 }
-
 
 void	Server::handleMessage(int client_socket, const IRCMessage& msg)
 {

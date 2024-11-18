@@ -56,6 +56,23 @@ bool	Server::send_to_client(int client_socket, const std::string& msg)
 */
 void    Server::removeClient(int client_socket)
 {
+
+	for (std::map<std::string, Channel>::iterator it = _channels.begin(); it != _channels.end();)
+    {
+        it->second.users.erase(client_socket);
+        it->second.operators.erase(client_socket);
+        it->second.invited_users.erase(client_socket);
+
+        if (it->second.users.empty())
+        {
+            _channels.erase(it++);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+
 	std::vector<pollfd>::iterator it;
 
 	for (it = _fds.begin(); it != _fds.end(); ++it)
@@ -74,24 +91,6 @@ void    Server::removeClient(int client_socket)
     _recv_buffers.erase(client_socket);
     _client_send_buffers.erase(client_socket);
 
-    std::map<std::string, Channel>::iterator chan_it = _channels.begin();
-    while (chan_it != _channels.end())
-    {
-        chan_it->second.users.erase(client_socket);
-
-        if (chan_it->second.users.empty())
-        {
-            std::map<std::string, Channel>::iterator temp = chan_it;
-            ++chan_it;
-            _channels.erase(temp);
-        }
-        else
-        {
-            ++chan_it;
-        }
-    }
-
-    _clients.erase(client_socket);
 	close(client_socket);
 	Logger::info("client removed", client_socket);
 	return ;

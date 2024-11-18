@@ -30,6 +30,7 @@ void    Server::acceptNewConnection()
 
 	new_client.fd = client_socket;
 	new_client.events = POLLIN;
+	new_client.revents = 0;
 	_fds.push_back(new_client);
 
 	Logger::info("new connection", new_client.fd);

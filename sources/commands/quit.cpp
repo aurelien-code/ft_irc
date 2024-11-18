@@ -8,19 +8,28 @@
 */
 void Server::handle_quit(int client_socket, const IRCMessage& msg)
 {
-    std::string quit_message = msg.params.empty() ? "Quit" : msg.params[0];
-    std::string nick = _client_nicknames[client_socket];
-    std::string quit_notification = ":" + nick + " QUIT :Quit: " + quit_message;
+    std::string quit_message = "Client Quit";
+    if (!msg.params.empty())
+        quit_message = msg.params[0];
 
-    std::map<std::string, Channel>::iterator it = _channels.begin();
-    for (;it != _channels.end(); ++it)
+    // Prepare quit message before removing from maps
+    std::string nick = _client_nicknames[client_socket];
+    std::string username = _client_usernames[client_socket];
+    std::string host = get_client_host(client_socket);
+
+    std::string quit_notification = ":" + nick + "!" + username + "@" + host +
+                                  " QUIT :Quit: " + quit_message;
+
+    // First notify all channels
+    for (std::map<std::string, Channel>::iterator it = _channels.begin();
+         it != _channels.end(); ++it)
     {
         if (it->second.users.find(client_socket) != it->second.users.end())
         {
             broadcast_to_channel(it->first, quit_notification);
-            it->second.users.erase(client_socket);
         }
     }
 
+    // Then remove the client
     removeClient(client_socket);
 }

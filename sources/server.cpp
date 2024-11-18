@@ -96,11 +96,12 @@ bool    Server::initialize()
 		return (false);
 	}
 
-	pollfd  serverPollFd = {
-	   _serverSocket,
-		POLLIN,
-		0
-	};
+	pollfd serverPollFd;
+	serverPollFd.fd = _serverSocket;
+	serverPollFd.events = POLLIN;
+	serverPollFd.revents = 0;
+	_fds.push_back(serverPollFd);
+
 
 	_fds.push_back(serverPollFd);
 
@@ -120,6 +121,11 @@ void    Server::run()
 	{
 		try
 		{
+			for (size_t i = 0; i < _fds.size(); ++i)
+			{
+			    _fds[i].revents = 0;
+			}
+
 			int poll_result = poll(&_fds[0], _fds.size(), -1);
 
 			if (poll_result > 0)
