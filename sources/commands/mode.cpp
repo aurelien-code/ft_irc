@@ -29,7 +29,6 @@ void Server::handle_mode(int client_socket, const IRCMessage& msg)
 
 void Server::handle_channel_mode(int client_socket, const std::string& channel_name, const std::string& modes, const std::vector<std::string>& params)
 {
-	Logger::warning(modes, 22);
     if (_channels.find(channel_name) == _channels.end())
     {
         send_to_client(client_socket, ERR_NOSUCHCHANNEL(_client_nicknames[client_socket] + " " + channel_name));
