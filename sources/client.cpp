@@ -37,7 +37,7 @@ bool	Server::send_to_client(int client_socket, const std::string& msg)
         }
         else if (bytes_sent == 0) //Connection is now closed
         {
-            _client_send_buffers[client_socket] += msg_build.substr(total_sent);
+            _client_send_buffers[client_socket] += msg_build.substr(total_sent);//
             set_fd_for_writing(client_socket);
             return false;
         }

@@ -12,7 +12,6 @@ void Server::handle_quit(int client_socket, const IRCMessage& msg)
     if (!msg.params.empty())
         quit_message = msg.params[0];
 
-    // Prepare quit message before removing from maps
     std::string nick = _client_nicknames[client_socket];
     std::string username = _client_usernames[client_socket];
     std::string host = get_client_host(client_socket);
@@ -20,7 +19,6 @@ void Server::handle_quit(int client_socket, const IRCMessage& msg)
     std::string quit_notification = ":" + nick + "!" + username + "@" + host +
                                   " QUIT :Quit: " + quit_message;
 
-    // First notify all channels
     for (std::map<std::string, Channel>::iterator it = _channels.begin();
          it != _channels.end(); ++it)
     {
@@ -30,6 +28,5 @@ void Server::handle_quit(int client_socket, const IRCMessage& msg)
         }
     }
 
-    // Then remove the client
     removeClient(client_socket);
 }

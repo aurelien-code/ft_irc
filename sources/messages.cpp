@@ -27,10 +27,10 @@ void Server::handleClientMessage(int client_socket)
         return;
     }
 
-    // Store the received data in a temporary variable
+    // store the received data in a temporary variable
     std::string current_message(buffer, bytes_read);
 
-    // Append to existing buffer
+    // append to existing buffer
     std::map<int, std::string>::iterator it = _recv_buffers.find(client_socket);
     if (it != _recv_buffers.end())
     {
@@ -41,7 +41,7 @@ void Server::handleClientMessage(int client_socket)
         _recv_buffers[client_socket] = current_message;
     }
 
-    // Process complete messages
+    // process complete messages
     std::string& client_buffer = _recv_buffers[client_socket];
     size_t pos;
 
@@ -57,7 +57,6 @@ void Server::handleClientMessage(int client_socket)
                 IRCMessage parsed_msg = Parser::parse(message);
                 handleMessage(client_socket, parsed_msg);
 
-                // Check if client was removed during message handling
                 if (_recv_buffers.find(client_socket) == _recv_buffers.end())
                     return;
             }

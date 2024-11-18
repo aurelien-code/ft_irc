@@ -32,7 +32,6 @@ void Server::handle_part(int client_socket, const IRCMessage& msg)
     broadcast_to_channel(channel_name, part_notification);
     channel.users.erase(client_socket);
 
-    // Remove channel if empty
     if (channel.users.empty())
         _channels.erase(channel_name);
 }
