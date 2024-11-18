@@ -28,7 +28,6 @@ bool	Server::send_to_client(int client_socket, const std::string& msg)
         {
             if (errno == EAGAIN || errno == EWOULDBLOCK)
             {
-                // Buffer the remaining data
                 _client_send_buffers[client_socket] += msg_build.substr(total_sent);
                 set_fd_for_writing(client_socket);
                 return false;
@@ -36,9 +35,8 @@ bool	Server::send_to_client(int client_socket, const std::string& msg)
             Logger::error("Error sending message to client", client_socket);
             return false;
         }
-        else if (bytes_sent == 0) // Connection closed
+        else if (bytes_sent == 0) //Connection is now closed
         {
-            // Buffer the remaining data in case connection is restored
             _client_send_buffers[client_socket] += msg_build.substr(total_sent);
             set_fd_for_writing(client_socket);
             return false;
@@ -81,7 +79,6 @@ void    Server::removeClient(int client_socket)
     {
         chan_it->second.users.erase(client_socket);
 
-        // If channel is empty after user removal, remove the channel
         if (chan_it->second.users.empty())
         {
             std::map<std::string, Channel>::iterator temp = chan_it;
@@ -100,18 +97,8 @@ void    Server::removeClient(int client_socket)
 	return ;
 }
 
-//MODIFIER
 std::string Server::get_client_host(int client_socket) const
 {
-    struct sockaddr_in addr;
-    socklen_t addr_len = sizeof(addr);
-
-    if (getpeername(client_socket, (struct sockaddr*)&addr, &addr_len) < 0)
-        return "unknown";
-
-    char host[INET_ADDRSTRLEN];
-    if (inet_ntop(AF_INET, &(addr.sin_addr), host, INET_ADDRSTRLEN) == NULL)
-        return "unknown";
-
-    return std::string(host);
+	(void)client_socket;
+	return "localhost";
 }

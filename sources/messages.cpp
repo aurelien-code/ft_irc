@@ -1,3 +1,4 @@
+#include "defines.hpp"
 #include "parser.hpp"
 #include "server.hpp"
 #include "logger.hpp"
@@ -26,7 +27,6 @@ void    Server::handleClientMessage(int client_socket)
 		}
 		else if (!bytes_read)
 		{
-			// Process any remaining data in the buffer before removing client
 	        if (_recv_buffers[client_socket].length() > 0)
 	        {
 	            std::string& client_buffer = _recv_buffers[client_socket];
@@ -42,7 +42,6 @@ void    Server::handleClientMessage(int client_socket)
 	                    handleMessage(client_socket, parsed_msg);
 	                }
 	            }
-	            // Process any remaining incomplete message
 	            if (!client_buffer.empty())
 	            {
 	                IRCMessage parsed_msg = Parser::parse(client_buffer);
@@ -92,20 +91,18 @@ void    Server::handleClientMessage(int client_socket)
 		Logger::error("Error in handleClientMessage: " + std::string(e.what()));
         removeClient(client_socket);
 	}
-	// send(client_socket, response.c_str(), response.length(), 0);
 	return ;
 }
 
 
 void	Server::handleMessage(int client_socket, const IRCMessage& msg)
 {
-	std::cout << "MESSAGE : \n\t" << msg.cmd << "\n\t" << msg.prefix << "\n";
     Logger::debug("Received command: " + msg.cmd, client_socket);
     if (!_client_registered[client_socket])
     {
         if (msg.cmd != "PASS" && msg.cmd != "NICK" && msg.cmd != "USER" && msg.cmd != "CAP")
         {
-            send_to_client(client_socket, "451 :You have not registered");
+            send_to_client(client_socket, ERR_NOTREGISTER());
             return;
         }
     }
@@ -117,11 +114,11 @@ void	Server::handleMessage(int client_socket, const IRCMessage& msg)
     else if (msg.cmd == "PASS")
     {
         if (msg.params.empty())
-            send_to_client(client_socket, "461 PASS :Not enough parameters");
+            send_to_client(client_socket, ERR_INVALIDUSRLIMIT_F(std::string("PASS")));
         else if (_client_registered[client_socket])
-            send_to_client(client_socket, "462 :You may not reregister");
+            send_to_client(client_socket, ERR_NOREREGISTER());
         else if (msg.params[0] != _password)
-            send_to_client(client_socket, "464 :Password incorrect");
+            send_to_client(client_socket, ERR_BADPASSWORD());
         else
             _client_auth[client_socket] = true;
     }
@@ -154,6 +151,6 @@ void	Server::handleMessage(int client_socket, const IRCMessage& msg)
         else if (msg.cmd == "PING")
             send_to_client(client_socket, "PONG :" + (msg.params.empty() ? "" : msg.params[0]));
         else
-            send_to_client(client_socket, "421 " + msg.cmd + " :Unknown command");
+            send_to_client(client_socket, ERR_UNKNOWCMD(msg.cmd));
     }
 }

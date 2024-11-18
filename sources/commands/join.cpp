@@ -16,13 +16,13 @@ void Server::handle_join(int client_socket, const IRCMessage& msg)
     {
         if (!_client_registered[client_socket])
         {
-            send_to_client(client_socket, "451 :You have not registered");
+            send_to_client(client_socket, ERR_NOTREGISTER());
             return;
         }
 
         if (msg.params.empty())
         {
-            send_to_client(client_socket, "461 JOIN :Not enough parameters");
+            send_to_client(client_socket, ERR_NEEDMOREPARAMS(std::string("JOIN")));
             return;
         }
 
@@ -30,14 +30,14 @@ void Server::handle_join(int client_socket, const IRCMessage& msg)
         Logger::debug("Attempting to join channel: " + channel_name, client_socket);
         if (channel_name.empty() || (channel_name[0] != '#' && channel_name[0] != '&'))
         {
-            send_to_client(client_socket, "403 " + channel_name + " :Invalid channel name");
+            send_to_client(client_socket, ERR_NOSUCHCHANNEL(channel_name));
             return;
         }
 
         if (_channels.find(channel_name) != _channels.end())
         {
             Channel& channel = _channels[channel_name];
-            Logger::warning("Channel modes: " + channel.modes, client_socket);
+            Logger::debug("Channel modes: " + channel.modes, client_socket);
             Logger::debug("Channel key: " + channel.key, client_socket);
 
            	size_t k_pos = channel.modes.find_last_of('k');
@@ -46,7 +46,7 @@ void Server::handle_join(int client_socket, const IRCMessage& msg)
                 if (msg.params.size() < 2)
                 {
                 	Logger::debug("No key provided", client_socket);
-                    send_to_client(client_socket, "475 " + channel_name + " :Cannot join channel (+k) - bad key");
+                    send_to_client(client_socket, ERR_INVALIDKEY(channel_name));
                     return;
                 }
 
@@ -54,7 +54,7 @@ void Server::handle_join(int client_socket, const IRCMessage& msg)
                 if (msg.params[1] != channel.key)
                 {
                     Logger::debug("Key mismatch", client_socket);
-                    send_to_client(client_socket, "475 " + _client_nicknames[client_socket] + " " + channel_name + " :Cannot join channel (+k) - bad key");
+                    send_to_client(client_socket, ERR_INVALIDKEY(_client_nicknames[client_socket] + " " + channel_name));
                     return;
                 }
            	}
@@ -64,7 +64,7 @@ void Server::handle_join(int client_socket, const IRCMessage& msg)
            	{
                 if (channel.invited_users.find(client_socket) == channel.invited_users.end())
                 {
-                    send_to_client(client_socket, "473 " + channel_name + " :Cannot join channel (+i) - invite only");
+                    send_to_client(client_socket, ERR_NOINVITE(channel_name));
                     return;
                 }
            	}
@@ -73,7 +73,7 @@ void Server::handle_join(int client_socket, const IRCMessage& msg)
             {
                 if (static_cast<int>(channel.users.size()) >= channel.user_limit)
                 {
-                    send_to_client(client_socket, "471 " + channel_name + " :Cannot join channel (+l) - channel is full");
+                    send_to_client(client_socket, ERR_CHANFULL(channel_name));
                     return;
                 }
             }
@@ -117,6 +117,6 @@ void Server::handle_join(int client_socket, const IRCMessage& msg)
     catch (const std::exception& e)
     {
         Logger::error("Exception in handle_join: " + std::string(e.what()));
-        send_to_client(client_socket, "403 :Failed to join channel");
+        send_to_client(client_socket, ERR_NOSUCHCHANNEL(std::string("")));
     }
 }

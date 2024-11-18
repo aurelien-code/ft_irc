@@ -54,13 +54,11 @@ bool Server::is_valid_nickname(const std::string& nick)
     if (nick.empty() || nick.length() > 9)
         return false;
 
-    // First character must be a letter or special character
     if (!isalpha(nick[0]) && nick[0] != '[' && nick[0] != ']' && nick[0] != '\\' &&
         nick[0] != '`' && nick[0] != '_' && nick[0] != '^' && nick[0] != '{' &&
         nick[0] != '|' && nick[0] != '}')
         return false;
 
-    // Rest can include letters, digits, and special characters
     for (size_t i = 1; i < nick.length(); ++i)
     {
         char c = nick[i];

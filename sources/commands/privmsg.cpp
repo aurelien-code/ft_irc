@@ -1,18 +1,22 @@
 #include "../../headers/server.hpp"
-#include "../../headers/logger.hpp"
 
-
+/*
+	@description: send either a message to a channel or in private
+	@list:
+		- Send to the correct destination
+		- Error handling
+*/
 void Server::handle_privmsg(int client_socket, const IRCMessage& msg)
 {
     if (msg.params.empty())
     {
-        send_to_client(client_socket, "411 :No recipient given (PRIVMSG)");
+        send_to_client(client_socket, ERR_NORECIPIENT());
         return;
     }
 
     if (msg.params.size() < 2 || msg.params[1].empty())
     {
-        send_to_client(client_socket, "412 :No text to send");
+        send_to_client(client_socket, ERR_NOTEXTTOSEND());
         return;
     }
 
@@ -22,25 +26,23 @@ void Server::handle_privmsg(int client_socket, const IRCMessage& msg)
                         _client_usernames[client_socket] + "@" +
                         get_client_host(client_socket);
 
-    // Channel message
     if (target[0] == '#' || target[0] == '&')
     {
         if (_channels.find(target) == _channels.end())
         {
-            send_to_client(client_socket, "403 " + target + " :No such channel");
+            send_to_client(client_socket, ERR_NOTONCHANNEL(target));
             return;
         }
 
         if (_channels[target].users.find(client_socket) == _channels[target].users.end())
         {
-            send_to_client(client_socket, "404 " + target + " :Cannot send to channel");
+            send_to_client(client_socket, ERR_CANTSENDCHAN(target));
             return;
         }
 
         std::string full_message = ":" + sender + " PRIVMSG " + target + " :" + message;
         broadcast_to_channel(target, full_message, client_socket);
     }
-    // Private message to user
     else
     {
         bool found = false;
@@ -59,7 +61,7 @@ void Server::handle_privmsg(int client_socket, const IRCMessage& msg)
 
         if (!found)
         {
-            send_to_client(client_socket, "401 " + target + " :No such nick/channel");
+            send_to_client(client_socket, ERR_NOSUCHNICK(target));
             return;
         }
 

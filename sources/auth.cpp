@@ -1,6 +1,6 @@
 #include "server.hpp"
 #include "logger.hpp"
-
+#include "defines.hpp"
 
 /*
 	@description: Accept a new client connection
@@ -38,7 +38,7 @@ void    Server::acceptNewConnection()
 /*
 	@description:
 	@list:
-		- Send welcome message
+		- Send welcome message as defined in RFC2812
 */
 void Server::check_registration(int client_socket)
 {
@@ -51,22 +51,10 @@ void Server::check_registration(int client_socket)
 
         std::string nick = _client_nicknames[client_socket];
 
-        // Send welcome messages according to RFC 2812
-        // 001 RPL_WELCOME
-        send_to_client(client_socket, "001 " + nick + " :Welcome to the IRC Network " +
-                      nick + "!" + _client_usernames[client_socket] + "@" + get_client_host(client_socket));
-
-        // 002 RPL_YOURHOST
-        send_to_client(client_socket, "002 " + nick + " :Your host is " + get_server_name() +
-                      ", running version 1.0");
-
-        // 003 RPL_CREATED
-        send_to_client(client_socket, "003 " + nick + " :This server was created " +
-                      get_server_creation_time());
-
-        // 004 RPL_MYINFO
-        send_to_client(client_socket, "004 " + nick + " " + get_server_name() +
-                      " 1.0 io mtk");
+        send_to_client(client_socket, INFO_WELCOME_001(nick, _client_usernames[client_socket], get_client_host(client_socket)));
+        send_to_client(client_socket, INFO_WELCOME_002(nick, get_server_name()));
+        send_to_client(client_socket, INFO_WELCOME_003(nick, get_server_creation_time()));
+        send_to_client(client_socket, INFO_WELCOME_004(nick, get_server_name()));
 
         Logger::info("Client registration complete for " + nick, client_socket);
     }

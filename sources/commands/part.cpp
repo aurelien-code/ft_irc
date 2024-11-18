@@ -4,7 +4,7 @@ void Server::handle_part(int client_socket, const IRCMessage& msg)
 {
     if (msg.params.empty())
     {
-        send_to_client(client_socket, "461 PART :Not enough parameters");
+        send_to_client(client_socket, ERR_NEEDMOREPARAMS(std::string("PART")));
         return;
     }
 
@@ -13,14 +13,14 @@ void Server::handle_part(int client_socket, const IRCMessage& msg)
 
     if (_channels.find(channel_name) == _channels.end())
     {
-        send_to_client(client_socket, "403 " + channel_name + " :No such channel");
+        send_to_client(client_socket, ERR_NOTONCHANNEL(channel_name));
         return;
     }
 
     Channel& channel = _channels[channel_name];
     if (channel.users.find(client_socket) == channel.users.end())
     {
-        send_to_client(client_socket, "442 " + channel_name + " :You're not on that channel");
+        send_to_client(client_socket, ERR_NOTONCHANNEL(channel_name));
         return;
     }
 

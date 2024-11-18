@@ -1,7 +1,6 @@
 #pragma once
 
 #include <string>
-#include <iostream>
 
 #define RED "\e[0;31m"
 #define GRN "\e[0;32m"
@@ -15,12 +14,9 @@ class Logger
 		static const bool _debug = true;
 
     public:
-    	static void	   debug(const std::string& txt, int c_socket);
-        static void    info(const std::string& txt, int c_socket);
-        static void    error(const std::string& txt, int c_socket);
-        static void	   warning(const std::string& txt, int c_socket);
-
-        static void    info(const std::string& txt);
-        static void    error(const std::string& txt);
+    	static void	   debug(const std::string& txt, int c_socket = -2);
+        static void    info(const std::string& txt, int c_socket = -2);
+        static void    error(const std::string& txt, int c_socket = -2);
+        static void	   warning(const std::string& txt, int c_socket = -2);
 
 };

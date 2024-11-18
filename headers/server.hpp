@@ -10,7 +10,7 @@
 #include <poll.h>
 #include <unistd.h>
 #include <ctime>
-
+#include "defines.hpp"
 #include "parser.hpp"
 #include "channel.hpp"
 

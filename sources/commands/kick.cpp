@@ -11,7 +11,7 @@ void Server::handle_kick(int client_socket, const IRCMessage& msg)
 {
     try {
         if (msg.params.size() < 2) {
-            send_to_client(client_socket, "461 KICK :Not enough parameters");
+            send_to_client(client_socket, ERR_NEEDMOREPARAMS(std::string("KICK")));
             return;
         }
 

@@ -1,8 +1,35 @@
 #pragma once
 
+#define INFO_WELCOME_001(nick, username, hostname) "001 " + nick + " :Welcome to the IRC Network " + nick + "!" + username + "@" + hostname
+#define INFO_WELCOME_002(nick, servername) "002 " + nick + " :Your host is " + servername + ", running version 1.0"
+#define INFO_WELCOME_003(nick, creation_time) "003 " + nick + " :This server was created " + creation_time
+#define INFO_WELCOME_004(nick, servername) "004 " + nick + " " + servername + " 1.0 io mtk"
+
+
+#define ERR_NORECIPIENT() "411 :No recipient given (PRIVMSG)"
+#define ERR_NOTEXTTOSEND() "412 :No text to send"
 #define ERR_CHANOPRIVSNEEDED(channel) "482 " + channel + " :You're not channel operator"
+#define ERR_CHANOPRIVSNEEDED_F(nick, channel) "482 " + nick + " " + channel + " :You're not channel operator"
 #define ERR_USERNOTINCHANNEL(nick, channel) "441 " + nick + " " + channel + " :They aren't on that channel"
 #define ERR_NOSUCHNICK(nick) "401 " + nick + " :No such nick/channel"
+#define ERR_NOSUCHNICK_F(nick, target) "401 " + nick + " " + target + " :No such nick/channel"
 #define ERR_NOSUCHCHANNEL(channel) "403 " + channel + " :No such channel"
+#define ERR_CANTSENDCHAN(channel) "404 " + channel + " :Cannot send to channel"
 #define ERR_NOTONCHANNEL(channel) "442 " + channel + " :You're not on that channel"
 #define ERR_NEEDMOREPARAMS(command) "461 " + command + " :Not enough parameters"
+#define ERR_INVALIDUSRLIMIT() "461 MODE :Invalid user limit"
+#define ERR_INVALIDUSRLIMIT_F(channel) "461 " + channel + " :Invalid user limit"
+#define ERR_NOTREGISTER() "451 :You have not registered"
+#define ERR_INVALIDKEY(channel) "475 " + channel + " :Cannot join channel (+k) - bad key"
+#define ERR_NOINVITE(channel) "473 " + channel + " :Cannot join channel (+i) - invite only"
+#define ERR_CHANFULL(channel) "471 " + channel + " :Cannot join channel (+l) - channel is full"
+#define ERR_UNKNOWMODE(nick, mode) "472 " + nick + " " + mode + " :is unknown mode char to me"
+#define ERR_NONICKNAME() "431 :No nickname given"
+#define ERR_NICKTOOLONG(nick) "432 " + nick + " :Nickname too long"
+#define ERR_INVALIDNICK(nick) "432 " + nick + " :Erroneous nickname"
+#define ERR_NICKUSED(nick) "433 " + nick + " :Nickname is already in use"
+#define ERR_NOTCHANOP(nick, channel) "482 " + nick + " " + channel + " :You'r not operator of this chan"
+#define ERR_NOREREGISTER() "462 :You may not reregister"
+#define ERR_BADPASSWORD() "464 :Password incorrect"
+#define ERR_UNKNOWCMD(cmd) "421 " + cmd + " :Unknown command"
+#define ERR_ALREADYJOIN(nick, channel) "443 " + nick + " " + channel +" :is already on channel"

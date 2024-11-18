@@ -10,7 +10,7 @@ void Server::handle_invite(int client_socket, const IRCMessage& msg)
 {
     try {
         if (msg.params.size() < 2) {
-            send_to_client(client_socket, "461 INVITE :Not enough parameters");
+            send_to_client(client_socket, ERR_NEEDMOREPARAMS(std::string("INVITE")));
             return;
         }
 
@@ -50,7 +50,7 @@ void Server::handle_invite(int client_socket, const IRCMessage& msg)
         }
 
         if (channel.users.find(target_socket) != channel.users.end()) {
-            send_to_client(client_socket, "443 " + target_nick + " " + channel_name +" :is already on channel");
+            send_to_client(client_socket, ERR_ALREADYJOIN(target_nick, channel_name));
             return;
         }
 

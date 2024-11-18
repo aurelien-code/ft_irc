@@ -56,10 +56,5 @@ IRCMessage Parser::parse(const std::string &raw_msg) {
         }
         msg.params.push_back(token);
     }
-    int i = 0;
-    for (std::vector<std::string>::iterator it = msg.params.begin(); it != msg.params.end(); ++it) {
-    	std::cout << i << ":" << *it << " \n";  // Dereference the iterator to get the string
-     	i++;
-    }
     return msg;
 }

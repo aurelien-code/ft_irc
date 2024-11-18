@@ -1,6 +1,5 @@
 #include "server.hpp"
 #include "logger.hpp"
-#include "defines.hpp"
 
 #include <exception>
 #include <stdexcept>
@@ -119,29 +118,36 @@ void    Server::run()
 {
 	while (true)
 	{
-		int poll_result = poll(&_fds[0], _fds.size(), -1);
-
-		if (poll_result > 0)
+		try
 		{
-			for (size_t i = 0; i < _fds.size(); ++i)
+			int poll_result = poll(&_fds[0], _fds.size(), -1);
+
+			if (poll_result > 0)
 			{
-				if (_fds[i].revents & POLLIN)
+				for (size_t i = 0; i < _fds.size(); ++i)
 				{
-					if (_fds[i].fd == _serverSocket)
-						acceptNewConnection();
-					else
-						handleClientMessage(_fds[i].fd);
-				}
-				else if (_fds[i].revents & POLLOUT)
-				{
-				    process_pending_writes(_fds[i].fd);
+					if (_fds[i].revents & POLLIN)
+					{
+						if (_fds[i].fd == _serverSocket)
+							acceptNewConnection();
+						else
+							handleClientMessage(_fds[i].fd);
+					}
+					else if (_fds[i].revents & POLLOUT)
+					{
+					    process_pending_writes(_fds[i].fd);
+					}
 				}
 			}
+			else
+			{
+			    Logger::error("Poll failed", 0);
+				break ;
+			}
 		}
-		else
+		catch (std::exception& e)
 		{
-		    Logger::error("Poll failed", 0);
-			break ;
+			Logger::error(e.what());
 		}
 	}
 }
